@@ -8,6 +8,80 @@
 #include "StdAfx.h"
 #include "ArchDefine.h"
 
+#define Macro_HWRandom() 
+__asm \
+	{ \
+		mov			edx, 10 \
+
+	HARDWARE_RND: \
+		__emit		0x0f \
+		__emit		0xc7 \
+		__emit		0xf0 \
+		jnb			RETRY \
+
+		retn \
+
+	RETRY: \
+		dec			edx \
+		pause                    \
+		jnz			HARDWARE_RND \
+
+		xor			eax, eax \
+		retn \
+	} \
+
+#define Macro_ArchCPU() 
+__asm    \
+	{   \
+		push		ebx  \
+		push		edi \
+		mov			eax, [esp + 0x0c]  \
+		cpuid                   \
+		mov			edi, [esp + 0x10]  \
+		mov			[edi], eax  \
+		mov			edi, [esp + 0x14] \
+		mov			[edi], ebx \
+		mov			edi, [esp + 0x18] \
+		mov			[edi], ecx \
+		mov			edi, [esp + 0x1c] \
+		mov			[edi], edx \
+		pop			edi \
+		pop			ebx  \
+		retn
+	} \
+
+#define Macro_GetCPU()
+__asm    \
+	{   \
+		lfence  \
+		rdtsc   \
+		lfence  \  
+		retn    \
+	} \
+
+#define Macro_KernelInit()
+__asm   \
+	{   \
+		cli  \
+		mov			edx, [esp + 4] \
+		mov			eax, [esp + 8] \
+		call		edx \
+		retn    \
+	} \
+	#define Macro_ArcoSegCs()
+__asm   \
+	{ \
+		mov		ax,cs \
+		movzx	eax,ax   \
+		retn  \
+	} \
+#define Macro_GetIdt()
+__asm   \
+	{  \
+		mov			eax,[esp + 4] \
+		sidt		fword ptr[eax + KDESCRIPTOR.Limit] \
+		retn \
+	} \
 //
 // init phase 0
 //
@@ -39,24 +113,7 @@ EFI_STATUS ArchCheck64BitCpu()
 //
 VOID __declspec(naked) ArchCpuId(UINT32 command, UINT32* eaxValue, UINT32* ebxValue, UINT32* ecxValue, UINT32* edxValue)
 {
-	__asm
-	{
-		push		ebx
-		push		edi
-		mov			eax, [esp + 0x0c]
-		cpuid
-		mov			edi, [esp + 0x10]
-		mov			[edi], eax
-		mov			edi, [esp + 0x14]
-		mov			[edi], ebx
-		mov			edi, [esp + 0x18]
-		mov			[edi], ecx
-		mov			edi, [esp + 0x1c]
-		mov			[edi], edx
-		pop			edi
-		pop			ebx
-		retn
-	}
+Macro_ArchCPU();	
 }
 
 //
@@ -64,26 +121,7 @@ VOID __declspec(naked) ArchCpuId(UINT32 command, UINT32* eaxValue, UINT32* ebxVa
 //
 UINTN __declspec(naked) ArchHardwareRandom()
 {
-	__asm
-	{
-		mov			edx, 10
-
-	HARDWARE_RND:
-		__emit		0x0f
-		__emit		0xc7
-		__emit		0xf0
-		jnb			RETRY
-
-		retn
-
-	RETRY:
-		dec			edx
-		pause
-		jnz			HARDWARE_RND
-
-		xor			eax, eax
-		retn
-	}
+Macro_HWRandom();	
 }
 
 //
@@ -91,13 +129,7 @@ UINTN __declspec(naked) ArchHardwareRandom()
 //
 UINT64 __declspec(naked) ArchGetCpuTick()
 {
-	__asm
-	{
-		lfence
-		rdtsc
-		lfence
-		retn
-	}
+Macro_GetCPU();	
 }
 
 //
@@ -105,14 +137,7 @@ UINT64 __declspec(naked) ArchGetCpuTick()
 //
 VOID __declspec(naked) ArchStartKernel(VOID* kernelEntry, VOID* bootArgs)
 {
-	__asm
-	{
-		cli
-		mov			edx, [esp + 4]
-		mov			eax, [esp + 8]
-		call		edx
-		retn
-	}
+Macro_KernelInit();	
 }
 
 //
@@ -131,12 +156,7 @@ BOOLEAN MmTranslateVirtualAddress(VOID* virtualAddress, UINT64* physicalAddress)
 //
 UINT32 __declspec(naked) ArchGetSegCs()
 {
-	__asm
-	{
-		mov		ax,cs
-		movzx	eax,ax
-		retn
-	}
+Macro_ArcoSegCs();	
 }
 
 //
@@ -144,12 +164,9 @@ UINT32 __declspec(naked) ArchGetSegCs()
 //
 VOID __declspec(naked) ArchGetIdtRegister(KDESCRIPTOR* idtr)
 {
-	__asm
-	{
-		mov			eax,[esp + 4]
-		sidt		fword ptr[eax + KDESCRIPTOR.Limit]
-		retn
-	}
+	
+	Macro_GetIdt();
+	
 }
 
 //
