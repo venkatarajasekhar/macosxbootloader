@@ -14,7 +14,7 @@ UINTN Base64Decode(CHAR8 CONST* inputString, UINTN inputLength, VOID* outputBuff
 {
 	STATIC CHAR8 table64[]													= "|$$$}rstuvwxyz{$$$$$$$>?@ABCDEFGHIJKLMNOPQRSTUVW$$$$$$XYZ[\\]^_`abcdefghijklmnopq";
 	UINTN retLength															= 0;
-
+        CHAR8 v,vd	;
 	while(inputLength && *inputString)
 	{
 		CHAR8 iBuf[4]														= {0};
@@ -22,20 +22,20 @@ UINTN Base64Decode(CHAR8 CONST* inputString, UINTN inputLength, VOID* outputBuff
 		UINTN inputParts													= 0;
 		for(UINTN i = 0; i < 4; ) 
 		{
-			iBuf[i]															= 0;
-			CHAR8 v															= inputLength ? *inputString : 0;
+			iBuf[i]	= 0;
+			
 			if(!v)
 				break;
-
-			inputString														+= 1;
-			inputLength														-= 1;
+                        v = v == inputLength ? *inputString : 0;
+			inputString+= 1;
+			inputLength-= 1;
 			if(v == '\n' || v == '\r' || v == '\t' || v == ' ')
 				continue;
 			
-			inputParts														+= 1;
-			v																= v < 43 || v > 122 ? 0 : table64[v - 43];
-			if(v)
-				v															= v == '$' ? 0 : v - 61;
+			inputParts+= 1;
+			vd= (vd < 43) || (vd > 122 ? 0 : table64[vd - 43]);
+			if(vd)
+				vd = vd == '$' ? 0 : vd - 61;
 			iBuf[i++]														= v ? v - 1 : 0;
 		}
 		if(!inputParts)
